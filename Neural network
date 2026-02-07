@@ -1,0 +1,109 @@
+import torch 
+import matplotlib.pyplot as plt
+import torch.nn as nn
+import torch.optim as optim  
+
+#Synthetic data generation from -30 to 29 with a step size of 1
+X = torch.arange(-30, 30, 1).view(-1, 1).to(torch.float32) 
+
+# Initialize an empty tensor Y
+Y = torch.zeros(X.shape[0])
+
+# Assign labels
+Y[X[:, 0] <= -10] = 1.0
+Y[(X[:, 0] > -10) & (X[:, 0] < 10)] = 0.5
+Y[X[:, 0] > 10] = 0 
+
+import matplotlib.pyplot as plt
+
+plt.plot(X, Y)
+plt.xlabel('X')
+plt.ylabel('Y')
+
+# Display the plot
+plt.show()
+
+class SingleLayerNet(nn.Module):
+    def __init__(self, input_size, hidden_neurons, output_size):
+        super(SingleLayerNet, self).__init__()
+        
+#Define a Prediction Function
+    def forward(self, x):
+        # Pass the input through the hidden layer and apply the sigmoid activation function
+        hidden_output = torch.sigmoid(self.hidden_layer(x))
+
+        y_pred = torch.sigmoid(self.output_layer(hidden_output))
+
+        return y_pred
+    
+    # create the model 
+model = SingleLayerNet(1, 2, 1)  
+# 2 represents two neurons in one hidden layer
+
+# Define the loss function
+def criterion(y_pred, y_true):
+    # Binary Cross Entropy Loss
+    # y_pred: predicted probabilities, y_true: true labels (0 or 1)
+    
+    # Compute the negative log likelihood loss using binary cross-entropy formula
+    # (y * log(y_pred) + (1 - y) * log(1 - y_pred))
+    loss = -1 * (y_true * torch.log(y_pred) + (1 - y_true) * torch.log(1 - y_pred))
+    
+    # Calculate the mean loss over the batch
+    mean_loss = torch.mean(loss)
+    
+    return mean_loss
+
+# Create an optimizer for Example SGD
+optimizer = optim.SGD(model.parameters(), lr=0.01)
+
+# Define the training loop
+epochs = 5000
+cost = []  # List to store the total loss at each epoch
+
+for epoch in range(epochs):
+    total_loss = 0  # Variable to store the total loss for the current epoch
+    epoch = epoch + 1  # Increment the epoch count
+
+    for x, y in zip(X, Y):
+        # Forward pass: Calculate the predicted output using the model
+        yhat = model(x)
+
+        # Calculate the loss between the predicted output and the actual target (y)
+        loss = criterion(yhat, y)
+
+        # Backpropagation: Compute gradients of the model parameters with respect to the loss
+        loss.backward()
+
+        # Update the model parameters using the computed gradients
+        optimizer.step()
+
+        # Zero out the gradients for the next iteration to avoid accumulation
+        optimizer.zero_grad()
+
+        # Accumulate the loss for this batch of data
+        total_loss += loss.item()
+
+    # Append the total loss for this epoch to the cost list
+    cost.append(total_loss)
+
+    if epoch % 1000 == 0:
+        print(f"Epoch {epoch} done!")  # Print status after every 1000 epochs
+
+        predicted_values = model(X).detach().numpy()
+        plt.plot(X.numpy(), predicted_values)  # Plot the predicted values
+        plt.plot(X.numpy(), Y.numpy(), 'm')  # Plot the ground truth data (Y)
+        plt.xlabel('x')
+        plt.ylabel('y')
+        plt.legend(['Predicted', 'Ground Truth'])
+        plt.title(f'Epoch {epoch} - Function Approximation')
+        plt.show()
+
+        # Plot the cost
+plt.plot(cost, marker='o', linestyle='-', color='b', label='Training Loss')
+plt.xlabel('Epochs')
+plt.ylabel('Cross Entropy Loss')
+plt.title('Training Progress - Cross Entropy Loss')
+plt.grid(True)
+plt.legend()
+plt.show()
