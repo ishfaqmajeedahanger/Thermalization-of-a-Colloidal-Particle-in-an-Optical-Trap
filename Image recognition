@@ -1,0 +1,55 @@
+import torch
+import torchvision
+from torchvision import datasets, transforms
+from torch import nn, optim
+import matplotlib.pyplot as plt
+from torch.utils.data import DataLoader
+from torchvision import models
+
+# Define the transformations (resize, convert to tensor, and normalize)
+transform = transforms.Compose([
+    transforms.Resize((224, 224)),  # Resize image to match model input size
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+])
+
+# Load a dataset containing cats (using CIFAR-10 for simplicity)
+trainset = datasets.CIFAR10(root='./data', train=True, download=True, transform=transform)
+valset = datasets.CIFAR10(root='./data', train=False, download=True, transform=transform)
+
+trainloader = DataLoader(trainset, batch_size=64, shuffle=True)
+valloader = DataLoader(valset, batch_size=64, shuffle=False)
+
+# Load a pre-trained ResNet model
+from torchvision.models import ResNet18_Weights
+
+weights = ResNet18_Weights.DEFAULT
+model = models.resnet18(weights=weights)
+
+# Fine-tuning the model for 2 classes (cat or not)
+num_ftrs = model.fc.in_features
+model.fc = nn.Linear(num_ftrs, 2)  # 2 classes: cat vs other
+
+# Use the GPU if available
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+model = model.to(device)
+
+# Evaluation function
+def predict_image(image):
+    image = image.unsqueeze(0).to(device)  # Add batch dimension and move to device
+    with torch.no_grad():  # No need to calculate gradients during inference
+        output = model(image)
+    _, pred = torch.max(output, 1)  # Get predicted class
+    return pred.item()
+
+# Show a few images from the validation set and predict
+dataiter = iter(valloader)
+images, labels = next(dataiter)
+
+# Visualize the first image
+plt.imshow(images[0].permute(1, 2, 0))  # Convert (C, H, W) to (H, W, C)
+plt.show()
+
+# Predict the label for the first image
+pred = predict_image(images[0])
+print(f"Predicted class: {'Cat' if pred == 3 else 'Not Cat'}")  # CIFAR-10 class 3 is 'cat'
